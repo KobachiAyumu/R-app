@@ -49,7 +49,7 @@ if input_method == "CSVアップロード":
 # 手入力
 # -------------------------
 else:
-    n = st.number_input("データ数", 1, 50, 5)
+    n = st.number_input("データ数", 1, 50, 2)
 
     data = []
     for i in range(n):
@@ -118,7 +118,7 @@ if df is not None:
             elif graph_style == "散布図":
                 ax.scatter(df.index, df["差"])
 
-            ax.set_title("前後差")
+            ax.set_title("Pre-Post Difference")
 
         # ===== グループ比較 =====
         elif analysis == "グループ比較":
@@ -131,7 +131,7 @@ if df is not None:
             elif graph_style == "棒グラフ":
                 ax.bar(result.index, result.values)
 
-            ax.set_title("グループ比較")
+            ax.set_title("Group Comparison")
 
         # ===== 相関 =====
         elif analysis == "相関":
@@ -139,7 +139,7 @@ if df is not None:
             ax.scatter(df["Cr_pre"], df["Kt_V"])
             ax.set_xlabel("Cr_pre")
             ax.set_ylabel("Kt/V")
-            ax.set_title("相関")
+            ax.set_title("Correlation")
 
         # -------------------------
         # ✅ 表示
