@@ -4,16 +4,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 
+# 日本語フォント
 plt.rcParams['font.family'] = 'IPAexGothic'
 sns.set()
 
-st.title("データ解析ツール")
+st.title("データ解析ツール（プロ版）")
 
 # -------------------------
-# ✅ 分析選択
+# ✅ 分析選択（複数可）
 # -------------------------
 analysis_options = st.multiselect(
-    "分析内容を選択（複数可）",
+    "分析内容を選択",
     ["Kt/V", "前後差", "グループ比較", "相関"],
     default=["Kt/V"]
 )
@@ -78,15 +79,13 @@ if df is not None:
         df["差"] = df["Cr_post"] - df["Cr_pre"]
 
     # -------------------------
-    # ✅ 分析ループ
+    # ✅ グラフ作成ループ
     # -------------------------
     for analysis in analysis_options:
 
         fig, ax = plt.subplots()
 
-        # =====================
-        # ✅ Kt/V
-        # =====================
+        # ===== Kt/V =====
         if analysis == "Kt/V" and "Kt_V" in df.columns:
 
             if graph_style == "折れ線":
@@ -104,9 +103,7 @@ if df is not None:
             ax.axhline(1.2, color="red", linestyle="--")
             ax.set_title("Kt/V")
 
-        # =====================
-        # ✅ 前後差
-        # =====================
+        # ===== 前後差 =====
         elif analysis == "前後差":
 
             if graph_style == "折れ線":
@@ -123,9 +120,7 @@ if df is not None:
 
             ax.set_title("前後差")
 
-        # =====================
-        # ✅ グループ比較
-        # =====================
+        # ===== グループ比較 =====
         elif analysis == "グループ比較":
 
             result = df.groupby("Sex")["Kt_V"].mean()
@@ -138,9 +133,7 @@ if df is not None:
 
             ax.set_title("グループ比較")
 
-        # =====================
-        # ✅ 相関
-        # =====================
+        # ===== 相関 =====
         elif analysis == "相関":
 
             ax.scatter(df["Cr_pre"], df["Kt_V"])
@@ -148,4 +141,21 @@ if df is not None:
             ax.set_ylabel("Kt/V")
             ax.set_title("相関")
 
+        # -------------------------
+        # ✅ 表示
+        # -------------------------
         st.pyplot(fig)
+
+        # -------------------------
+        # ✅ PNG保存（追加部分）
+        # -------------------------
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300)
+        buf.seek(0)
+
+        st.download_button(
+            label=f"{analysis} をPNGで保存",
+            data=buf,
+            file_name=f"{analysis}_{graph_style}.png",
+            mime="image/png"
+        )
