@@ -125,7 +125,7 @@ if df is not None:
 
         result = df.groupby("Sex")["Kt_V"].mean()
 
-        st.write("Mean value")
+        st.write("平均値")
         st.write(result)
 
         fig, ax = plt.subplots()
@@ -137,6 +137,6 @@ if df is not None:
             color="#5B9BD5"
         )
 
-        ax.set_title("グループ比較")
+        ax.set_title("Group comparison")
 
         st.pyplot(fig)
