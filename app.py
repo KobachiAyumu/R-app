@@ -1,14 +1,7 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # ← これが最強対策
- 
-# -------------------------
-# ✅ 描画設定
-# -------------------------
-sns.set()
-
+import seaborn as sns
 
 
 # -------------------------
