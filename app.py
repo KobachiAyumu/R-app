@@ -98,7 +98,7 @@ if df is not None:
         fig, ax = plt.subplots()
         ax.hist(df["Kt_V"], bins=10, color="#4472C4", edgecolor="black")
         ax.axvline(1.2, color="red", linestyle="--", linewidth=2)
-        ax.set_title("Kt/V 分布")
+        ax.set_title("Kt/V distribution")
 
         st.pyplot(fig)
 
@@ -113,7 +113,7 @@ if df is not None:
 
         fig, ax = plt.subplots()
         ax.hist(df["差"], bins=10, color="#70AD47", edgecolor="black")
-        ax.set_title("前後差分布")
+        ax.set_title("Distribution of Pre-Post Differences")
 
         st.pyplot(fig)
 
@@ -125,7 +125,7 @@ if df is not None:
 
         result = df.groupby("Sex")["Kt_V"].mean()
 
-        st.write("平均値")
+        st.write("Mean value")
         st.write(result)
 
         fig, ax = plt.subplots()
