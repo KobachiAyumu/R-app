@@ -149,16 +149,3 @@ if df is not None:
             ax.set_title("相関")
 
         st.pyplot(fig)
-
-        # 画像をメモリに保存
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png")
-        buf.seek(0)
-        
-        # ダウンロードボタン
-        st.download_button(
-            label="このグラフをPNGで保存",
-            data=buf,
-            file_name=f"{analysis}_{graph_style}.png",
-            mime="image/png"
-        )
