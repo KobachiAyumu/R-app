@@ -3,34 +3,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# -------------------------
-# ✅ フォント（Cloud対応）
-# -------------------------
 plt.rcParams['font.family'] = 'IPAexGothic'
-
 sns.set()
 
-# -------------------------
-# ✅ スタイル
-# -------------------------
-plt.style.use("default")
-plt.rcParams.update({
-    "figure.facecolor": "white",
-    "axes.facecolor": "white",
-    "axes.edgecolor": "black",
-    "axes.grid": True,
-    "grid.linestyle": "--",
-    "grid.alpha": 0.7,
-    "font.size": 10
-})
-
-# -------------------------
-# ✅ タイトル
-# -------------------------
 st.title("データ解析ツール")
 
 # -------------------------
-# ✅ 入力方法選択
+# ✅ グラフ選択（先に置く！）
+# -------------------------
+selected_graphs = st.multiselect(
+    "表示するグラフを選択（複数可）",
+    ["Kt/V", "前後差", "グループ比較"],
+    default=["Kt/V"]
+)
+
+# -------------------------
+# ✅ 入力方法
 # -------------------------
 input_method = st.radio(
     "データ入力方法を選択",
@@ -40,7 +28,7 @@ input_method = st.radio(
 df = None
 
 # -------------------------
-# ✅ CSV入力
+# CSV入力
 # -------------------------
 if input_method == "CSVアップロード":
     uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
@@ -49,11 +37,12 @@ if input_method == "CSVアップロード":
         df = pd.read_csv(uploaded_file, encoding="utf-8")
 
 # -------------------------
-# ✅ 手入力
+# 手入力
 # -------------------------
 elif input_method == "手入力":
 
     st.subheader("データ入力")
+
     num_rows = st.number_input("データ数", 1, 50, 5)
 
     data = []
@@ -68,11 +57,6 @@ elif input_method == "手入力":
         post = st.number_input(f"Cr_post_{i+1}", key=f"post{i}")
 
         data.append([id_val, sex, ktv, pre, post])
-
-        graph_type = st.selectbox(
-            "表示するグラフを選択",
-            ["Kt/V", "前後差", "グループ比較"]
-    )
 
     if st.button("データ確定"):
         df = pd.DataFrame(
@@ -92,66 +76,53 @@ if df is not None:
     st.write(df.describe())
 
     # -------------------------
-    # ✅ グラフ選択
+    # ✅ 選択されたグラフを全部表示
     # -------------------------
-   
+    for graph_type in selected_graphs:
 
-    # -------------------------
-    # ✅ Kt/V（折れ線）
-    # -------------------------
-    if graph_type == "Kt/V" and "Kt_V" in df.columns:
+        # -------------------------
+        # ✅ Kt/V
+        # -------------------------
+        if graph_type == "Kt/V" and "Kt_V" in df.columns:
 
-        st.subheader("Kt/V 分布")
+            st.subheader("Kt/V 分布")
 
-        fig, ax = plt.subplots()
-        ax.plot(df.index, df["Kt_V"], marker='o', color="#4472C4")
+            fig, ax = plt.subplots()
+            ax.plot(df.index, df["Kt_V"], marker='o')
 
-        # 判定ライン
-        ax.axhline(1.2, color="red", linestyle="--", label="基準値 1.2")
+            ax.axhline(1.2, color="red", linestyle="--")
+            ax.set_title("Kt/V Distribution")
 
-        ax.set_title("Kt/V Distribution")
-        ax.set_xlabel("Index")
-        ax.set_ylabel("Kt/V")
-        ax.legend()
+            st.pyplot(fig)
 
-        st.pyplot(fig)
+        # -------------------------
+        # ✅ 前後差
+        # -------------------------
+        if graph_type == "前後差" and "Cr_pre" in df.columns:
 
-    # -------------------------
-    # ✅ 前後差（折れ線）
-    # -------------------------
-    elif graph_type == "前後差" and "Cr_pre" in df.columns and "Cr_post" in df.columns:
+            st.subheader("前後差分布")
 
-        st.subheader("前後差分布")
+            df["差"] = df["Cr_post"] - df["Cr_pre"]
 
-        df["差"] = df["Cr_post"] - df["Cr_pre"]
+            fig, ax = plt.subplots()
+            ax.plot(df.index, df["差"], marker='o')
 
-        fig, ax = plt.subplots()
-        ax.plot(df.index, df["差"], marker='o', color="#70AD47")
+            ax.set_title("Distribution of Pre-Post Differences")
 
-        ax.set_title("Distribution of Pre-Post Differences")
-        ax.set_xlabel("Index")
-        ax.set_ylabel("Difference")
+            st.pyplot(fig)
 
-        st.pyplot(fig)
+        # -------------------------
+        # ✅ グループ比較
+        # -------------------------
+        if graph_type == "グループ比較" and "Sex" in df.columns:
 
-    # -------------------------
-    # ✅ グループ比較（折れ線）
-    # -------------------------
-    elif graph_type == "グループ比較" and "Sex" in df.columns:
+            st.subheader("グループ比較")
 
-        st.subheader("グループ比較")
+            result = df.groupby("Sex")["Kt_V"].mean()
 
-        result = df.groupby("Sex")["Kt_V"].mean()
+            fig, ax = plt.subplots()
+            ax.plot(result.index, result.values, marker='o')
 
-        fig, ax = plt.subplots()
-        ax.plot(result.index, result.values, marker='o', color="#5B9BD5")
+            ax.set_title("Group Comparison")
 
-        # 平均値表示
-        for i, v in enumerate(result.values):
-            ax.text(i, v, f"{v:.2f}", ha='center')
-
-        ax.set_title("Group Comparison")
-        ax.set_xlabel("Sex")
-        ax.set_ylabel("Mean")
-
-        st.pyplot(fig)
+            st.pyplot(fig)
