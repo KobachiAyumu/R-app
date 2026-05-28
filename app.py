@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'MS Gothic'
-import seaborn as sns
 
 
 # -------------------------
