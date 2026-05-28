@@ -55,11 +55,11 @@ elif input_method == "手入力":
     for i in range(num_rows):
         st.write(f"データ {i+1}")
 
-        id_val = st.number_input(f"ID_{i}",min_value=1,step=1,format="%d",key=f"id{i}")
-        sex = st.selectbox(f"Sex_{i}", ["M", "F"], key=f"sex{i}")
-        ktv = st.number_input(f"Kt_V_{i}", key=f"ktv{i}")
-        pre = st.number_input(f"Cr_pre_{i}", key=f"pre{i}")
-        post = st.number_input(f"Cr_post_{i}", key=f"post{i}")
+        id_val = st.number_input(f"ID_{i+1}",min_value=1,step=1,format="%d",key=f"id{i+1}")
+        sex = st.selectbox(f"Sex_{i+1}", ["M", "F"], key=f"sex{i+1}")
+        ktv = st.number_input(f"Kt_V_{i+1}", key=f"ktv{i+1}")
+        pre = st.number_input(f"Cr_pre_{i+1}", key=f"pre{i+1}")
+        post = st.number_input(f"Cr_post_{i+1}", key=f"post{i+1}")
 
         data.append([id_val, sex, ktv, pre, post])
 
