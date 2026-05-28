@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-plt.rcParams['font.family'] = 'MS Gothic'
+
+sns.set()  # ← 追加
+plt.rcParams['font.family'] = 'MS Gothic'  # ← ここに移動 or 再記述
 
 
 # -------------------------
