@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # ← 日本語対応
 import seaborn as sns
+
+plt.rcParams['font.family'] = 'IPAexGothic'
 
 sns.set()
 
