@@ -6,123 +6,145 @@ import seaborn as sns
 plt.rcParams['font.family'] = 'IPAexGothic'
 sns.set()
 
-st.title("データ解析ツール")
+st.title("データ解析ツール（プロ版）")
 
 # -------------------------
-# ✅ グラフ選択（先に置く！）
+# ✅ 分析選択
 # -------------------------
-selected_graphs = st.multiselect(
-    "表示するグラフを選択（複数可）",
-    ["Kt/V", "前後差", "グループ比較"],
+analysis_options = st.multiselect(
+    "分析内容を選択（複数可）",
+    ["Kt/V", "前後差", "グループ比較", "相関"],
     default=["Kt/V"]
+)
+
+# -------------------------
+# ✅ グラフ形式
+# -------------------------
+graph_style = st.selectbox(
+    "グラフ形式",
+    ["折れ線", "棒グラフ", "ヒストグラム", "散布図"]
 )
 
 # -------------------------
 # ✅ 入力方法
 # -------------------------
 input_method = st.radio(
-    "データ入力方法を選択",
+    "データ入力方法",
     ["CSVアップロード", "手入力"]
 )
 
 df = None
 
 # -------------------------
-# CSV入力
+# CSV
 # -------------------------
 if input_method == "CSVアップロード":
-    uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
-
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file, encoding="utf-8")
+    file = st.file_uploader("CSV選択", type="csv")
+    if file:
+        df = pd.read_csv(file, encoding="utf-8")
 
 # -------------------------
 # 手入力
 # -------------------------
-elif input_method == "手入力":
-
-    st.subheader("データ入力")
-
-    num_rows = st.number_input("データ数", 1, 50, 5)
+else:
+    n = st.number_input("データ数", 1, 50, 5)
 
     data = []
+    for i in range(n):
+        st.write(f"データ{i+1}")
 
-    for i in range(num_rows):
-        st.write(f"データ {i+1}")
-
-        id_val = st.number_input(f"ID_{i+1}", min_value=1, step=1, format="%d", key=f"id{i}")
-        sex = st.selectbox(f"Sex_{i+1}", ["M", "F"], key=f"sex{i}")
-        ktv = st.number_input(f"Kt_V_{i+1}", key=f"ktv{i}")
-        pre = st.number_input(f"Cr_pre_{i+1}", key=f"pre{i}")
-        post = st.number_input(f"Cr_post_{i+1}", key=f"post{i}")
+        id_val = st.number_input(f"ID{i}", 1, key=f"id{i}")
+        sex = st.selectbox(f"Sex{i}", ["M", "F"], key=f"sex{i}")
+        ktv = st.number_input(f"Kt_V{i}", key=f"ktv{i}")
+        pre = st.number_input(f"Cr_pre{i}", key=f"pre{i}")
+        post = st.number_input(f"Cr_post{i}", key=f"post{i}")
 
         data.append([id_val, sex, ktv, pre, post])
 
     if st.button("データ確定"):
-        df = pd.DataFrame(
-            data,
-            columns=["ID", "Sex", "Kt_V", "Cr_pre", "Cr_post"]
-        )
+        df = pd.DataFrame(data, columns=["ID","Sex","Kt_V","Cr_pre","Cr_post"])
 
 # -------------------------
 # ✅ 解析
 # -------------------------
 if df is not None:
 
-    st.subheader("データ表示")
+    st.subheader("データ")
     st.write(df)
 
-    st.subheader("基本統計")
-    st.write(df.describe())
+    # 前処理
+    if "Cr_pre" in df.columns:
+        df["差"] = df["Cr_post"] - df["Cr_pre"]
 
     # -------------------------
-    # ✅ 選択されたグラフを全部表示
+    # ✅ 分析ループ
     # -------------------------
-    for graph_type in selected_graphs:
+    for analysis in analysis_options:
 
-        # -------------------------
+        fig, ax = plt.subplots()
+
+        # =====================
         # ✅ Kt/V
-        # -------------------------
-        if graph_type == "Kt/V" and "Kt_V" in df.columns:
+        # =====================
+        if analysis == "Kt/V" and "Kt_V" in df.columns:
 
-            st.subheader("Kt/V 分布")
+            if graph_style == "折れ線":
+                ax.plot(df.index, df["Kt_V"], marker='o')
 
-            fig, ax = plt.subplots()
-            ax.plot(df.index, df["Kt_V"], marker='o')
+            elif graph_style == "棒グラフ":
+                ax.bar(df.index, df["Kt_V"])
+
+            elif graph_style == "ヒストグラム":
+                ax.hist(df["Kt_V"])
+
+            elif graph_style == "散布図":
+                ax.scatter(df.index, df["Kt_V"])
 
             ax.axhline(1.2, color="red", linestyle="--")
-            ax.set_title("Kt/V Distribution")
+            ax.set_title("Kt/V")
 
-            st.pyplot(fig)
-
-        # -------------------------
+        # =====================
         # ✅ 前後差
-        # -------------------------
-        if graph_type == "前後差" and "Cr_pre" in df.columns:
+        # =====================
+        elif analysis == "前後差":
 
-            st.subheader("前後差分布")
+            if graph_style == "折れ線":
+                ax.plot(df.index, df["差"], marker='o')
 
-            df["差"] = df["Cr_post"] - df["Cr_pre"]
+            elif graph_style == "棒グラフ":
+                ax.bar(df.index, df["差"])
 
-            fig, ax = plt.subplots()
-            ax.plot(df.index, df["差"], marker='o')
+            elif graph_style == "ヒストグラム":
+                ax.hist(df["差"])
 
-            ax.set_title("Distribution of Pre-Post Differences")
+            elif graph_style == "散布図":
+                ax.scatter(df.index, df["差"])
 
-            st.pyplot(fig)
+            ax.set_title("前後差")
 
-        # -------------------------
+        # =====================
         # ✅ グループ比較
-        # -------------------------
-        if graph_type == "グループ比較" and "Sex" in df.columns:
-
-            st.subheader("グループ比較")
+        # =====================
+        elif analysis == "グループ比較":
 
             result = df.groupby("Sex")["Kt_V"].mean()
 
-            fig, ax = plt.subplots()
-            ax.plot(result.index, result.values, marker='o')
+            if graph_style == "折れ線":
+                ax.plot(result.index, result.values, marker='o')
 
-            ax.set_title("Group Comparison")
+            elif graph_style == "棒グラフ":
+                ax.bar(result.index, result.values)
 
-            st.pyplot(fig)
+            ax.set_title("グループ比較")
+
+        # =====================
+        # ✅ 相関
+        # =====================
+        elif analysis == "相関":
+
+            ax.scatter(df["Cr_pre"], df["Kt_V"])
+            ax.set_xlabel("Cr_pre")
+            ax.set_ylabel("Kt/V")
+            ax.set_title("相関")
+
+        st.pyplot(fig)
