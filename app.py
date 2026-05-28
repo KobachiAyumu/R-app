@@ -3,8 +3,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-sns.set()  # ← 追加
-plt.rcParams['font.family'] = 'MS Gothic'  # ← ここに移動 or 再記述
+sns.set()
+
+plt.rcParams['font.family'] = 'IPAexGothic'
 
 
 # -------------------------
