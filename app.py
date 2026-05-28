@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # ← これだけ追加
+import japanize_matplotlib  # ← 日本語対応
+import seaborn as sns
 
 sns.set()
-
 
 # -------------------------
 # ✅ Excel風スタイル
@@ -43,7 +42,7 @@ if input_method == "CSVアップロード":
     uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
 
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
+        df = pd.read_csv(uploaded_file, encoding="utf-8")
 
 # -------------------------
 # ✅ 手入力
@@ -58,11 +57,11 @@ elif input_method == "手入力":
     for i in range(num_rows):
         st.write(f"データ {i+1}")
 
-        id_val = st.number_input(f"ID_{i+1}",min_value=1,step=1,format="%d",key=f"id{i+1}")
-        sex = st.selectbox(f"Sex_{i+1}", ["M", "F"], key=f"sex{i+1}")
-        ktv = st.number_input(f"Kt_V_{i+1}", key=f"ktv{i+1}")
-        pre = st.number_input(f"Cr_pre_{i+1}", key=f"pre{i+1}")
-        post = st.number_input(f"Cr_post_{i+1}", key=f"post{i+1}")
+        id_val = st.number_input(f"ID_{i+1}", min_value=1, step=1, format="%d", key=f"id{i}")
+        sex = st.selectbox(f"Sex_{i+1}", ["M", "F"], key=f"sex{i}")
+        ktv = st.number_input(f"Kt_V_{i+1}", key=f"ktv{i}")
+        pre = st.number_input(f"Cr_pre_{i+1}", key=f"pre{i}")
+        post = st.number_input(f"Cr_post_{i+1}", key=f"post{i}")
 
         data.append([id_val, sex, ktv, pre, post])
 
@@ -80,9 +79,6 @@ if df is not None:
     st.subheader("データ表示")
     st.write(df)
 
-    # -------------------------
-    # 基本統計
-    # -------------------------
     st.subheader("基本統計")
     st.write(df.describe())
 
@@ -102,8 +98,6 @@ if df is not None:
         ax.hist(df["Kt_V"], bins=10, color="#4472C4", edgecolor="black")
         ax.axvline(1.2, color="red", linestyle="--", linewidth=2)
         ax.set_title("Kt/V 分布")
-        ax.set_xlabel("Kt/V")
-        ax.set_ylabel("頻度")
 
         st.pyplot(fig)
 
