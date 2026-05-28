@@ -69,6 +69,11 @@ elif input_method == "手入力":
 
         data.append([id_val, sex, ktv, pre, post])
 
+        graph_type = st.selectbox(
+            "表示するグラフを選択",
+            ["Kt/V", "前後差", "グループ比較"]
+    )
+
     if st.button("データ確定"):
         df = pd.DataFrame(
             data,
@@ -89,10 +94,7 @@ if df is not None:
     # -------------------------
     # ✅ グラフ選択
     # -------------------------
-    graph_type = st.selectbox(
-        "表示するグラフを選択",
-        ["Kt/V", "前後差", "グループ比較"]
-    )
+   
 
     # -------------------------
     # ✅ Kt/V（折れ線）
