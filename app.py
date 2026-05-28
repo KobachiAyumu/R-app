@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-plt.rcParams['font.family'] = 'MS Gothic'
 
 # -------------------------
 # ✅ Excel風スタイル
@@ -56,7 +55,7 @@ elif input_method == "手入力":
     for i in range(num_rows):
         st.write(f"データ {i+1}")
 
-        id_val = st.number_input(f"ID_{i}", key=f"id{i}")
+        id_val = st.number_input(f"ID_{i}",min_value=1,step=1,format="%d",key=f"id{i}")
         sex = st.selectbox(f"Sex_{i}", ["M", "F"], key=f"sex{i}")
         ktv = st.number_input(f"Kt_V_{i}", key=f"ktv{i}")
         pre = st.number_input(f"Cr_pre_{i}", key=f"pre{i}")
