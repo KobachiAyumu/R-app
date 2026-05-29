@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
 from scipy import stats
 import statsmodels.api as sm
 
@@ -10,7 +11,7 @@ sns.set()
 st.title("データ解析ツール")
 
 # =========================
-# session_state 初期化
+# state 初期化
 # =========================
 for key in ["df", "mode", "analysis", "graphs"]:
     if key not in st.session_state:
@@ -43,7 +44,6 @@ if st.session_state.mode == "input":
 
     method = st.radio("入力方法", ["手入力", "CSVアップロード"], index=0)
 
-    # -------- 手入力 --------
     if method == "手入力":
 
         n = st.number_input("データ数", 1, 50, 2)
@@ -74,7 +74,6 @@ if st.session_state.mode == "input":
             )
             st.session_state.mode = "result"
 
-    # -------- CSV --------
     else:
         file = st.file_uploader("CSVファイルを選択")
         if file:
@@ -85,6 +84,7 @@ if st.session_state.mode == "input":
 # 解析画面
 # =========================
 else:
+
     df = st.session_state.df.copy()
 
     st.subheader("データ")
@@ -93,13 +93,10 @@ else:
     analysis_options = st.session_state.analysis
     graph_options = st.session_state.graphs
 
-    # -------- 基本統計 --------
-    if "基本統計" in analysis_options:
-        st.subheader("基本統計")
-        st.write(df.describe())
-
-    # -------- 箱ひげ図 + t検定 --------
-    if "箱ひげ図" in graph_options and "t検定" in analysis_options:
+    # -------------------------
+    # 箱ひげ図 + t検定
+    # -------------------------
+    if "箱ひげ図" in graph_options:
 
         st.subheader("Kt/V（Sex別）")
 
@@ -108,35 +105,49 @@ else:
         with col_g:
             fig, ax = plt.subplots()
             sns.boxplot(x="Sex", y="Kt_V", data=df, ax=ax)
+
             ax.set_title("Boxplot (Kt/V by Sex)")
             ax.set_xlabel("Sex")
             ax.set_ylabel("Kt/V")
 
             ax.text(
                 1.02, 0.5,
-                "X-axis: Sex (M / F)\nY-axis: Dialysis efficiency (Kt/V)",
+                "X-axis: Sex\nY-axis: Kt/V",
                 transform=ax.transAxes,
                 fontsize=9,
                 va="center"
             )
+
             st.pyplot(fig)
 
-        with col_s:
-            g1 = df[df["Sex"] == "M"]["Kt_V"]
-            g2 = df[df["Sex"] == "F"]["Kt_V"]
+            # ✅ 画像保存
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300)
+            buf.seek(0)
 
-            if len(g1) > 1 and len(g2) > 1:
-                t, p = stats.ttest_ind(g1, g2)
-                st.markdown("### t検定結果")
-                st.write(f"M群 平均: {g1.mean():.2f}")
-                st.write(f"F群 平均: {g2.mean():.2f}")
-                st.write(f"t値: {t:.3f}")
-                st.write(f"p値: {p:.4f}")
+            st.download_button(
+                "このグラフを保存",
+                buf,
+                file_name="boxplot.png",
+                mime="image/png"
+            )
 
-    # -------- 散布図 + 相関・回帰 --------
+        if "t検定" in analysis_options:
+            with col_s:
+                g1 = df[df["Sex"]=="M"]["Kt_V"]
+                g2 = df[df["Sex"]=="F"]["Kt_V"]
+
+                if len(g1) > 1 and len(g2) > 1:
+                    t, p = stats.ttest_ind(g1, g2)
+                    st.write(f"t値: {t:.3f}")
+                    st.write(f"p値: {p:.4f}")
+
+    # -------------------------
+    # 散布図
+    # -------------------------
     if "散布図" in graph_options:
 
-        st.subheader("Cr_pre と Kt/V の関係")
+        st.subheader("散布図")
 
         col_g, col_s = st.columns([2, 1])
 
@@ -146,54 +157,69 @@ else:
             sns.regplot(x="Cr_pre", y="Kt_V", data=df, ax=ax, scatter=False)
 
             ax.set_title("Scatter Plot")
-            ax.set_xlabel("Cr_pre (mg/dL)")
+            ax.set_xlabel("Cr_pre")
             ax.set_ylabel("Kt/V")
 
             ax.text(
                 1.02, 0.5,
-                "X-axis: Pre-dialysis creatinine\nY-axis: Dialysis efficiency",
+                "X-axis: Cr_pre\nY-axis: Kt/V",
                 transform=ax.transAxes,
                 fontsize=9,
                 va="center"
             )
+
             st.pyplot(fig)
 
-        with col_s:
-            if "相関" in analysis_options:
+            # ✅ 画像保存
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300)
+            buf.seek(0)
+
+            st.download_button(
+                "このグラフを保存",
+                buf,
+                file_name="scatter.png",
+                mime="image/png"
+            )
+
+        if "相関" in analysis_options:
+            with col_s:
                 r = df["Cr_pre"].corr(df["Kt_V"])
-                st.write(f"相関係数 r: {r:.3f}")
+                st.write(f"r = {r:.3f}")
 
-            if "回帰分析" in analysis_options:
-                X = sm.add_constant(df[["Cr_pre"]])
-                y = df["Kt_V"]
-                model = sm.OLS(y, X).fit()
-                st.write(f"回帰係数: {model.params['Cr_pre']:.3f}")
-                st.write(f"R²: {model.rsquared:.3f}")
-
-    # -------- ヒストグラム --------
+    # -------------------------
+    # ヒストグラム
+    # -------------------------
     if "ヒストグラム" in graph_options:
-        st.subheader("Kt/V 分布")
+
+        st.subheader("ヒストグラム")
 
         fig, ax = plt.subplots()
         ax.hist(df["Kt_V"])
+
         ax.set_title("Histogram")
         ax.set_xlabel("Kt/V")
         ax.set_ylabel("Frequency")
 
-        ax.text(
-            1.02, 0.5,
-            "X-axis: Dialysis efficiency (Kt/V)\nY-axis: Frequency",
-            transform=ax.transAxes,
-            fontsize=9,
-            va="center"
-        )
         st.pyplot(fig)
 
-    # -------- 戻る --------
-    st.subheader("入力画面に戻る")
+        # ✅ 画像保存
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=300)
+        buf.seek(0)
 
+        st.download_button(
+            "このグラフを保存",
+            buf,
+            file_name="histogram.png",
+            mime="image/png"
+        )
+
+    # -------------------------
+    # 戻る
+    # -------------------------
     keep = st.radio(
-        "直前のデータを保持しますか？",
+        "データを保持しますか？",
         ["保持する", "破棄する"]
     )
 
