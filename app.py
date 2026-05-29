@@ -7,8 +7,6 @@ import io
 
 from scipy import stats
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
-from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 sns.set()
 
@@ -17,7 +15,7 @@ st.title("データ解析ツール（完全版）")
 # -------------------------
 # ✅ state
 # -------------------------
-for key in ["df","input_data","mode","columns_selected"]:
+for key in ["df","input_data","mode","columns_selected","output_columns"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -31,17 +29,25 @@ if st.session_state.mode == "input":
 
     st.subheader("データ設定")
 
-    # ✅ ① データ項目選択
+    # ✅ 入力項目
     column_options = ["ID","Sex","Kt_V","Cr_pre","Cr_post"]
 
     selected_columns = st.multiselect(
-        "使用するデータ項目を選択",
+        "入力するデータ項目",
         column_options,
         default=st.session_state.columns_selected or ["ID","Sex","Kt_V"]
     )
 
-    # 保存
     st.session_state.columns_selected = selected_columns
+
+    # ✅ ★ 出力項目選択（今回の追加）
+    output_columns = st.multiselect(
+        "出力するデータ項目",
+        selected_columns,
+        default=st.session_state.output_columns or selected_columns
+    )
+
+    st.session_state.output_columns = output_columns
 
     method = st.radio("入力方法", ["手入力","CSVアップロード"], index=0)
 
@@ -50,7 +56,6 @@ if st.session_state.mode == "input":
     # -------------------------
     if method == "手入力":
 
-        # ✅ ② 初期値2
         n = st.number_input("データ数",1,50,2)
 
         data = []
@@ -59,53 +64,34 @@ if st.session_state.mode == "input":
             row = []
             st.write(f"データ{i+1}")
 
-            saved = None
-            if st.session_state.input_data and i < len(st.session_state.input_data):
-                saved = st.session_state.input_data[i]
-
-            col_idx = 0
-
             if "ID" in selected_columns:
-                val = st.number_input(f"ID{i+1}",
-                                      value=saved[col_idx] if saved else i+1)
-                row.append(val)
-                col_idx += 1
+                row.append(st.number_input(f"ID{i+1}", value=i+1))
 
             if "Sex" in selected_columns:
-                val = st.selectbox(f"性別{i+1}", ["M","F"])
-                row.append(val)
-                col_idx += 1
+                row.append(st.selectbox(f"性別{i+1}", ["M","F"]))
 
             if "Kt_V" in selected_columns:
-                val = st.number_input(f"Kt/V{i+1}", value=1.0)
-                row.append(val)
-                col_idx += 1
+                row.append(st.number_input(f"Kt/V{i+1}", value=1.0))
 
             if "Cr_pre" in selected_columns:
-                val = st.number_input(f"Cr_pre{i+1}", value=0.0)
-                row.append(val)
-                col_idx += 1
+                row.append(st.number_input(f"Cr_pre{i+1}", value=0.0))
 
             if "Cr_post" in selected_columns:
-                val = st.number_input(f"Cr_post{i+1}", value=0.0)
-                row.append(val)
-                col_idx += 1
+                row.append(st.number_input(f"Cr_post{i+1}", value=0.0))
 
             data.append(row)
 
         if st.button("解析実行"):
             st.session_state.df = pd.DataFrame(data, columns=selected_columns)
-            st.session_state.input_data = data
             st.session_state.mode = "result"
 
     # -------------------------
     # ✅ CSV
     # -------------------------
     else:
-        file = st.file_uploader("CSVファイルを選択")
+        file = st.file_uploader("CSVファイル")
         if file:
-            df = pd.read_csv(file)
-            st.session_state.df = df
+            st.session_state.df = pd.read_csv(file)
             st.session_state.mode = "result"
 
 # =========================
@@ -115,14 +101,12 @@ else:
 
     df = st.session_state.df.copy()
 
-    st.subheader("データ")
-    st.write(df)
+    # ✅ ★ 出力対象の列に限定
+    if st.session_state.output_columns:
+        df = df[st.session_state.output_columns]
 
-    # -------------------------
-    # ✅ 安全処理
-    # -------------------------
-    if "Cr_pre" in df.columns and "Cr_post" in df.columns:
-        df["Difference"] = df["Cr_post"] - df["Cr_pre"]
+    st.subheader("データ（出力対象）")
+    st.write(df)
 
     # -------------------------
     # ✅ 基本統計
@@ -131,7 +115,7 @@ else:
     st.write(df.describe())
 
     # -------------------------
-    # ✅ t検定（安全版）
+    # ✅ 条件付き統計
     # -------------------------
     if "Sex" in df.columns and "Kt_V" in df.columns:
 
@@ -147,23 +131,22 @@ else:
             st.write(f"p値 = {p:.4f}")
 
     # -------------------------
-    # ✅ 相関（安全）
+    # ✅ 相関
     # -------------------------
     if "Cr_pre" in df.columns and "Kt_V" in df.columns:
 
         st.subheader("相関")
-
         r = df["Cr_pre"].corr(df["Kt_V"])
-        st.write(f"相関係数 r = {r:.3f}")
+        st.write(f"r = {r:.3f}")
 
     # -------------------------
-    # ✅ 多変量回帰（安全）
+    # ✅ 回帰
     # -------------------------
-    if all(col in df.columns for col in ["Cr_pre","Cr_post","Kt_V"]):
+    if all(col in df.columns for col in ["Cr_pre","Kt_V"]):
 
-        st.subheader("多変量回帰")
+        st.subheader("回帰分析")
 
-        X = df[["Cr_pre","Cr_post"]]
+        X = df[["Cr_pre"]]
         X = sm.add_constant(X)
         y = df["Kt_V"]
 
@@ -171,7 +154,7 @@ else:
         st.text(model.summary())
 
     # -------------------------
-    # ✅ グラフ選択（そのまま）
+    # ✅ グラフ選択
     # -------------------------
     st.subheader("グラフ")
 
@@ -195,10 +178,10 @@ else:
         st.pyplot(fig)
 
     # -------------------------
-    # ✅ 保存
+    # ✅ CSV保存
     # -------------------------
     csv = df.to_csv(index=False).encode()
-    st.download_button("CSVダウンロード", csv, "data.csv")
+    st.download_button("CSVダウンロード", csv, "filtered_data.csv")
 
     # -------------------------
     # ✅ 戻る
