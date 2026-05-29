@@ -11,11 +11,12 @@ st.title("データ解析ツール")
 # -------------------------
 # ✅ session_state 初期化
 # -------------------------
-if "df" not in st.session_state:
-    st.session_state.df = None
+for key in ["df", "analysis_options", "graph_styles"]:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
 # -------------------------
-# ✅ データ未確定 → 入力画面
+# ✅ 入力画面
 # -------------------------
 if st.session_state.df is None:
 
@@ -26,10 +27,11 @@ if st.session_state.df is None:
         default=["Kt/V"]
     )
 
-    # グラフ形式
-    graph_style = st.selectbox(
-        "グラフ形式",
-        ["折れ線", "棒グラフ", "ヒストグラム", "散布図"]
+    # ✅ グラフ複数選択
+    graph_styles = st.multiselect(
+        "グラフ形式（複数選択可）",
+        ["折れ線", "棒グラフ", "ヒストグラム", "散布図", "箱ひげ図"],
+        default=["折れ線"]
     )
 
     # 入力方法
@@ -38,20 +40,16 @@ if st.session_state.df is None:
         ["CSVアップロード", "手入力"]
     )
 
-    # -------------------------
-    # CSVアップロード
-    # -------------------------
+    # CSV
     if input_method == "CSVアップロード":
         file = st.file_uploader("CSV選択", type="csv")
         if file:
             df = pd.read_csv(file, encoding="utf-8")
             st.session_state.df = df
             st.session_state.analysis_options = analysis_options
-            st.session_state.graph_style = graph_style
+            st.session_state.graph_styles = graph_styles
 
-    # -------------------------
     # 手入力
-    # -------------------------
     else:
         n = st.number_input("データ数", 1, 50, 2)
 
@@ -72,22 +70,31 @@ if st.session_state.df is None:
                 data, columns=["ID", "Sex", "Kt_V", "Cr_pre", "Cr_post"]
             )
             st.session_state.analysis_options = analysis_options
-            st.session_state.graph_style = graph_style
+            st.session_state.graph_styles = graph_styles
 
 # -------------------------
-# ✅ データ確定 → 解析画面
+# ✅ 解析画面
 # -------------------------
 else:
+
     df = st.session_state.df
     analysis_options = st.session_state.analysis_options
-    graph_style = st.session_state.graph_style
+    graph_styles = st.session_state.graph_styles
 
     st.subheader("データ")
     st.write(df)
 
-    # 戻るボタン
+    # -------------------------
+    # ✅ 戻る処理（選択式）
+    # -------------------------
+    back_option = st.radio(
+        "戻る時のデータ扱い",
+        ["データ保持", "データをリセット"]
+    )
+
     if st.button("データ入力に戻る"):
-        st.session_state.df = None
+        if back_option == "データをリセット":
+            st.session_state.df = None
         st.rerun()
 
     # 前処理
@@ -95,96 +102,106 @@ else:
         df["差"] = df["Cr_post"] - df["Cr_pre"]
 
     # -------------------------
-    # ✅ グラフ作成
+    # ✅ グラフループ（二重ループ）
     # -------------------------
     for analysis in analysis_options:
+        for style in graph_styles:
 
-        fig, ax = plt.subplots()
+            fig, ax = plt.subplots()
 
-        # ===== Kt/V =====
-        if analysis == "Kt/V" and "Kt_V" in df.columns:
+            # ===== Kt/V =====
+            if analysis == "Kt/V":
 
-            if graph_style == "折れ線":
-                ax.plot(df["ID"], df["Kt_V"], marker='o')
+                if style == "折れ線":
+                    ax.plot(df["ID"], df["Kt_V"], marker='o')
 
-            elif graph_style == "棒グラフ":
-                ax.bar(df["ID"], df["Kt_V"])
+                elif style == "棒グラフ":
+                    ax.bar(df["ID"], df["Kt_V"])
 
-            elif graph_style == "ヒストグラム":
-                ax.hist(df["Kt_V"])
+                elif style == "ヒストグラム":
+                    ax.hist(df["Kt_V"])
 
-            elif graph_style == "散布図":
-                ax.scatter(df["ID"], df["Kt_V"])
+                elif style == "散布図":
+                    ax.scatter(df["ID"], df["Kt_V"])
 
-            # 基準ライン
-            ax.axhline(1.2, color="red", linestyle="--")
+                elif style == "箱ひげ図":
+                    sns.boxplot(y=df["Kt_V"], ax=ax)
 
-            # 平均値ライン
-            mean_val = df["Kt_V"].mean()
-            ax.axhline(mean_val, color="green", linestyle="--", label=f"Mean={mean_val:.2f}")
-            ax.legend()
+                ax.axhline(1.2, color="red", linestyle="--")
 
-            ax.set_title("Kt/V")
+                mean_val = df["Kt_V"].mean()
+                ax.axhline(mean_val, color="green", linestyle="--",
+                           label=f"Mean={mean_val:.2f}")
+                ax.legend()
 
-        # ===== 前後差 =====
-        elif analysis == "前後差":
+                ax.set_title(f"Kt/V ({style})")
 
-            if graph_style == "折れ線":
-                ax.plot(df["ID"], df["差"], marker='o')
+            # ===== 前後差 =====
+            elif analysis == "前後差":
 
-            elif graph_style == "棒グラフ":
-                ax.bar(df["ID"], df["差"])
+                if style == "折れ線":
+                    ax.plot(df["ID"], df["差"], marker='o')
 
-            elif graph_style == "ヒストグラム":
-                ax.hist(df["差"])
+                elif style == "棒グラフ":
+                    ax.bar(df["ID"], df["差"])
 
-            elif graph_style == "散布図":
-                ax.scatter(df["ID"], df["差"])
+                elif style == "ヒストグラム":
+                    ax.hist(df["差"])
 
-            ax.set_title("Pre-Post Difference")
+                elif style == "散布図":
+                    ax.scatter(df["ID"], df["差"])
 
-        # ===== グループ比較 =====
-        elif analysis == "グループ比較":
+                elif style == "箱ひげ図":
+                    sns.boxplot(y=df["差"], ax=ax)
 
-            result = df.groupby("Sex")["Kt_V"].mean()
+                ax.set_title(f"Pre-Post Difference ({style})")
 
-            if graph_style == "折れ線":
-                ax.plot(result.index, result.values, marker='o')
+            # ===== グループ比較 =====
+            elif analysis == "グループ比較":
 
-            elif graph_style == "棒グラフ":
-                ax.bar(result.index, result.values)
+                result = df.groupby("Sex")["Kt_V"].mean()
 
-            ax.set_title("Group Comparison")
+                if style == "折れ線":
+                    ax.plot(result.index, result.values, marker='o')
 
-        # ===== 相関 =====
-        elif analysis == "相関":
+                elif style == "棒グラフ":
+                    ax.bar(result.index, result.values)
 
-            sns.regplot(x="Cr_pre", y="Kt_V", data=df, ax=ax)
+                elif style == "箱ひげ図":
+                    sns.boxplot(x="Sex", y="Kt_V", data=df, ax=ax)
 
-            corr = df["Cr_pre"].corr(df["Kt_V"])
+                ax.set_title(f"Group Comparison ({style})")
 
-            ax.set_title(f"Correlation (r={corr:.2f})")
-            ax.set_xlabel("Cr_pre")
-            ax.set_ylabel("Kt/V")
+            # ===== 相関 =====
+            elif analysis == "相関":
 
-        # -------------------------
-        # ✅ 表示
-        # -------------------------
-        st.pyplot(fig)
+                if style in ["散布図", "折れ線"]:
+                    sns.regplot(x="Cr_pre", y="Kt_V", data=df, ax=ax)
 
-        # -------------------------
-        # ✅ PNG保存
-        # -------------------------
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=300)
-        buf.seek(0)
+                    corr = df["Cr_pre"].corr(df["Kt_V"])
+                    ax.set_title(f"Correlation r={corr:.2f}")
 
-        st.download_button(
-            label=f"{analysis} をPNGで保存",
-            data=buf,
-            file_name=f"{analysis}_{graph_style}.png",
-            mime="image/png"
-        )
+                else:
+                    ax.text(0.2, 0.5, "このグラフ形式は非対応")
+
+            # -------------------------
+            # ✅ 表示
+            # -------------------------
+            st.pyplot(fig)
+
+            # -------------------------
+            # ✅ PNG保存
+            # -------------------------
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=300)
+            buf.seek(0)
+
+            st.download_button(
+                label=f"{analysis}_{style} 保存",
+                data=buf,
+                file_name=f"{analysis}_{style}.png",
+                mime="image/png"
+            )
 
     # -------------------------
     # ✅ CSV保存
@@ -192,7 +209,7 @@ else:
     csv = df.to_csv(index=False).encode('utf-8')
 
     st.download_button(
-        "加工データCSVダウンロード",
+        "CSVダウンロード",
         csv,
         "processed_data.csv",
         "text/csv"
