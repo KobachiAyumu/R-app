@@ -1,19 +1,23 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import io
+
 from scipy import stats
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 sns.set()
 
-st.title("データ解析ツール（統計完全版）")
+st.title("Ultimate Data Analysis Tool")
 
-# -------------------------
-# ✅ state初期化
-# -------------------------
-for key in ["df", "analysis_options", "graph_styles", "input_data", "mode"]:
+# ------------------
+# ✅ state
+# ------------------
+for key in ["df","input_data","mode"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -21,192 +25,179 @@ if st.session_state.mode is None:
     st.session_state.mode = "input"
 
 # =========================
-# ✅ 入力画面
+# ✅ 入力
 # =========================
 if st.session_state.mode == "input":
 
-    input_method = st.radio(
-        "データ入力方法",
-        ["CSVアップロード", "手入力"],
-        index=1
-    )
+    method = st.radio("Input Method", ["Manual","CSV"], index=0)
 
-    analysis_options = st.multiselect(
-        "分析内容",
-        ["Kt/V", "前後差", "グループ比較", "相関", "t検定", "回帰分析"],
-        default=["Kt/V"]
-    )
+    if method == "Manual":
 
-    graph_styles = st.multiselect(
-        "グラフ形式",
-        ["折れ線", "棒グラフ", "ヒストグラム", "散布図", "箱ひげ図"],
-        default=["折れ線"]
-    )
-
-    # CSV
-    if input_method == "CSVアップロード":
-        file = st.file_uploader("CSV選択", type="csv")
-
-        if file:
-            df = pd.read_csv(file)
-            st.session_state.df = df
-            st.session_state.analysis_options = analysis_options
-            st.session_state.graph_styles = graph_styles
-            st.session_state.mode = "result"
-
-    # 手入力
-    else:
-        n = st.number_input("データ数", 1, 50, 2)
-
+        n = st.number_input("N",1,50,5)
         data = []
-        for i in range(n):
-            st.write(f"データ{i+1}")
 
+        for i in range(n):
             saved = None
             if st.session_state.input_data and i < len(st.session_state.input_data):
                 saved = st.session_state.input_data[i]
 
-            id_val = st.number_input(f"ID{i+1}", value=saved[0] if saved else i+1, key=f"id{i+1}")
-            sex = st.selectbox(f"Sex{i+1}", ["M","F"],
-                               index=["M","F"].index(saved[1]) if saved else 0,
-                               key=f"sex{i+1}")
-            ktv = st.number_input(f"Kt_V{i+1}", value=saved[2] if saved else 1.0, key=f"ktv{i+1}")
-            pre = st.number_input(f"Cr_pre{i+1}", value=saved[3] if saved else 0.0, key=f"pre{i+1}")
-            post = st.number_input(f"Cr_post{i+1}", value=saved[4] if saved else 0.0, key=f"post{i+1}")
+            idv = st.number_input(f"ID{i}", value=saved[0] if saved else i+1)
+            sex = st.selectbox(f"Sex{i}", ["M","F"],
+                                index=["M","F"].index(saved[1]) if saved else 0)
+            ktv = st.number_input(f"KtV{i}", value=saved[2] if saved else 1.0)
+            pre = st.number_input(f"Pre{i}", value=saved[3] if saved else 0.0)
+            post = st.number_input(f"Post{i}", value=saved[4] if saved else 0.0)
 
-            data.append([id_val, sex, ktv, pre, post])
+            data.append([idv,sex,ktv,pre,post])
 
-        if st.button("データ確定"):
+        if st.button("Run"):
             st.session_state.df = pd.DataFrame(
                 data, columns=["ID","Sex","Kt_V","Cr_pre","Cr_post"]
             )
-            st.session_state.analysis_options = analysis_options
-            st.session_state.graph_styles = graph_styles
             st.session_state.input_data = data
             st.session_state.mode = "result"
 
+    else:
+        file = st.file_uploader("CSV")
+        if file:
+            st.session_state.df = pd.read_csv(file)
+            st.session_state.mode = "result"
+
 # =========================
-# ✅ 解析画面
+# ✅ 解析
 # =========================
 else:
 
     df = st.session_state.df.copy()
-    analysis_options = st.session_state.analysis_options
-    graph_styles = st.session_state.graph_styles
 
-    st.subheader("データ")
+    st.subheader("Data")
     st.write(df)
 
-    # 基本統計
-    st.subheader("基本統計")
+    # 差分
+    df["Difference"] = df["Cr_post"] - df["Cr_pre"]
+
+    # ------------------
+    # ✅ フィルタ
+    # ------------------
+    if "Sex" in df.columns:
+        sex_filter = st.multiselect("Sex", df["Sex"].unique(), default=df["Sex"].unique())
+        df = df[df["Sex"].isin(sex_filter)]
+
+    # ------------------
+    # ✅ 記述統計
+    # ------------------
+    st.subheader("Statistics")
     st.write(df.describe())
 
-    # 戻る
-    back_option = st.radio("戻るとき", ["データ保持", "データをリセット"])
-    if st.button("データ入力に戻る"):
-        if back_option == "データをリセット":
-            st.session_state.df = None
-            st.session_state.input_data = None
+    # ------------------
+    # ✅ 正規性検定
+    # ------------------
+    st.subheader("Normality (Shapiro)")
+    if len(df["Kt_V"]) > 2:
+        stat, p = stats.shapiro(df["Kt_V"])
+        st.write(f"p={p:.4f}")
+
+    # ------------------
+    # ✅ t検定
+    # ------------------
+    st.subheader("t-test")
+
+    g1 = df[df["Sex"]=="M"]["Kt_V"]
+    g2 = df[df["Sex"]=="F"]["Kt_V"]
+
+    if len(g1)>1 and len(g2)>1:
+        t,p = stats.ttest_ind(g1,g2)
+
+        mean1,mean2 = g1.mean(),g2.mean()
+        sd1,sd2 = g1.std(),g2.std()
+
+        pooled = np.sqrt((sd1**2+sd2**2)/2)
+        d = (mean1-mean2)/pooled
+
+        st.write(f"t={t:.3f}, p={p:.4f}, d={d:.2f}")
+
+    # ------------------
+    # ✅ Mann-Whitney
+    # ------------------
+    st.subheader("Mann-Whitney")
+
+    if len(g1)>1 and len(g2)>1:
+        u,p = stats.mannwhitneyu(g1,g2)
+        st.write(f"U={u:.3f}, p={p:.4f}")
+
+    # ------------------
+    # ✅ ANOVA
+    # ------------------
+    st.subheader("ANOVA")
+    try:
+        model = smf.ols("Kt_V ~ Sex", data=df).fit()
+        anova = sm.stats.anova_lm(model)
+        st.write(anova)
+    except:
+        st.write("ANOVA not available")
+
+    # ------------------
+    # ✅ 相関
+    # ------------------
+    st.subheader("Correlation")
+    corr = df.corr(numeric_only=True)
+    st.write(corr)
+
+    fig, ax = plt.subplots()
+    sns.heatmap(corr, annot=True, ax=ax)
+    st.pyplot(fig)
+
+    # ------------------
+    # ✅ 回帰
+    # ------------------
+    st.subheader("Regression")
+
+    X = df[["Cr_pre","Cr_post"]]
+    X = sm.add_constant(X)
+    y = df["Kt_V"]
+
+    model = sm.OLS(y,X).fit()
+    st.text(model.summary())
+
+    # ------------------
+    # ✅ VIF
+    # ------------------
+    st.subheader("VIF")
+
+    vif_data = pd.DataFrame()
+    vif_data["feature"] = X.columns
+    vif_data["VIF"] = [variance_inflation_factor(X.values,i) for i in range(X.shape[1])]
+    st.write(vif_data)
+
+    # ------------------
+    # ✅ グラフ
+    # ------------------
+    st.subheader("Plots")
+
+    fig, ax = plt.subplots()
+    sns.boxplot(x="Sex", y="Kt_V", data=df, ax=ax)
+    st.pyplot(fig)
+
+    fig, ax = plt.subplots()
+    sns.scatterplot(x="Cr_pre", y="Kt_V", data=df, ax=ax)
+    sns.regplot(x="Cr_pre", y="Kt_V", data=df, ax=ax, scatter=False)
+    st.pyplot(fig)
+
+    # ------------------
+    # ✅ 保存
+    # ------------------
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+
+    st.download_button("Download PNG", buf, "plot.png")
+
+    csv = df.to_csv(index=False).encode()
+    st.download_button("Download CSV", csv, "data.csv")
+
+    # ------------------
+    # ✅ 戻る
+    # ------------------
+    if st.button("Back"):
         st.session_state.mode = "input"
         st.rerun()
-
-    # 前処理
-    if "Cr_pre" in df.columns and "Cr_post" in df.columns:
-        df["差"] = df["Cr_post"] - df["Cr_pre"]
-
-    # =========================
-    # ✅ t検定
-    # =========================
-    if "t検定" in analysis_options and "Sex" in df.columns:
-
-        st.subheader("t検定（Sex別 Kt/V）")
-
-        group1 = df[df["Sex"]=="M"]["Kt_V"]
-        group2 = df[df["Sex"]=="F"]["Kt_V"]
-
-        if len(group1) > 1 and len(group2) > 1:
-            t_stat, p_val = stats.ttest_ind(group1, group2)
-
-            st.write(f"t値: {t_stat:.3f}")
-            st.write(f"p値: {p_val:.4f}")
-
-            if p_val < 0.05:
-                st.success("✅ 有意差あり（p < 0.05）")
-            else:
-                st.info("有意差なし")
-
-    # =========================
-    # ✅ 回帰分析
-    # =========================
-    if "回帰分析" in analysis_options:
-
-        st.subheader("回帰分析（Cr_pre → Kt/V）")
-
-        if "Cr_pre" in df.columns:
-
-            X = df["Cr_pre"]
-            Y = df["Kt_V"]
-
-            X = sm.add_constant(X)
-            model = sm.OLS(Y, X).fit()
-
-            st.text(model.summary())
-
-    # =========================
-    # ✅ 相関
-    # =========================
-    if "相関" in analysis_options:
-
-        corr = df["Cr_pre"].corr(df["Kt_V"])
-        st.write(f"相関係数 r = {corr:.3f}")
-
-    # =========================
-    # ✅ グラフ
-    # =========================
-    for analysis in analysis_options:
-        for style in graph_styles:
-
-            fig, ax = plt.subplots()
-
-            if analysis == "Kt/V":
-
-                if style == "折れ線":
-                    ax.plot(df["ID"], df["Kt_V"], marker='o')
-                elif style == "棒グラフ":
-                    ax.bar(df["ID"], df["Kt_V"])
-                elif style == "ヒストグラム":
-                    ax.hist(df["Kt_V"])
-                elif style == "散布図":
-                    ax.scatter(df["ID"], df["Kt_V"])
-                elif style == "箱ひげ図":
-                    sns.boxplot(y=df["Kt_V"], ax=ax)
-
-                ax.axhline(1.2, color="red", linestyle="--")
-
-                ax.set_title(f"Kt/V ({style})")
-
-            elif analysis == "相関":
-
-                if style in ["散布図","折れ線"]:
-                    sns.regplot(x="Cr_pre", y="Kt_V", data=df, ax=ax)
-
-                    corr = df["Cr_pre"].corr(df["Kt_V"])
-                    ax.set_title(f"相関 r={corr:.2f}")
-
-            st.pyplot(fig)
-
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", dpi=300)
-            buf.seek(0)
-
-            st.download_button(
-                f"{analysis}_{style} 保存",
-                buf,
-                f"{analysis}_{style}.png",
-                "image/png"
-            )
-
-    # CSV
-    csv = df.to_csv(index=False).encode("utf-8")
-
-    st.download_button("CSVダウンロード", csv, "data.csv", "text/csv")
